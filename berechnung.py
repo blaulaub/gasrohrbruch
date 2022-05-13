@@ -4,52 +4,26 @@ from math import pi, sqrt
 
 
 #%% methane gas properties
-
 R     =  518.28     # Gas constant in [J/(kg·K)]
 gamma =    1.31     # specific heat ratio in [-]
 cp    = 2232        # specific heat in [J/(kg·K)]
 
 
 #%% pipe parameters
-
 D              = 0.3              # duct diameter in [m]
 cross_section  = pi/4 * D**2      # duct cross section
 
 
 #%% conditions at the upstream sensor
-
 T     =        10  + 273.15   # fluid temperature (~10 °C) in [K]
 p     = 6_000_000             # duct pressure in [Pa] (1 bar = 1e5 Pa)
 u     =        10             # flow velocity in [m/s]
 
 
 #%% other values at the upstream sensor position
-
 speed_of_sound = sqrt(gamma * R * T)   # local speed of sound in [m/s]
 Ma             = u / speed_of_sound    # local Mach number
 density        = p / (R*T)             # density in [kg/m³]
-
-
-#%% ideal upstream reservoir conditions (neglecting pipe friction)
-#   (these are only estimates, may be used for plausibility checks)
-
-# Note: "upstream reservoir" means an infinite volume of gas at rest;
-# this is similar to an "ideal voltage source" in electrical engineering
-
-Tt   = T * (1 + (gamma-1)/2 * Ma**2)
-pt   = p * (1 + (gamma-1)/2 * Ma**2)**(gamma/(gamma-1))
-
-
-#%% ideal flow
-#   (neglecting friction, hence the pipe length does not matter)
-
-def ideal_massflow_density(gamma, R, pt, Tt, Ma):
-    M = 1 + 0.5*(gamma-1) * Ma**2
-    c1 = M**(0.5*(1+gamma)/(1-gamma))
-    return pt/sqrt(Tt) * sqrt(gamma/R) * Ma * c1
-
-massflow = cross_section * ideal_massflow_density(gamma, R, pt, Tt, Ma)
-# computes to 28.9 kg/s for the given conditions
 
 
 #%% pipe friction parameter
@@ -60,57 +34,34 @@ rohrreibungsbeiwert = 0.01       # a.k.a. "Rohrreibungszahl"
 # see https://de.wikipedia.org/wiki/Rohrreibungszahl for how to estimate
 
 
-#%% real-world model parameters
-
-# Note: just like a real-world voltage source is modeled by combining
-# an ideal voltage source with an inner resistance, the real-world upstream
-# reservoir is modelled by combining an ideal upstream reservoir (an infinite
-# volume of gas at rest) with an outlet pipe of finite length; here, the
-# outlet pipe is called "upstream" pipe.
-
-# Note: the "upstream length" here is very similar to the "inner resistance"
-# in electrical engineering; it needs to BE TUNED ACCORDING TO MEASUREMENTS or
-# BE ESTIMATED ON SOUND ASSUMPTIONS, otherwise model predictions with regard
-# to leakage flows (pipe damage in fluid systems, similar to leak currents or
-# short circuits in electrical circuits) will be far off.
-
-# Also note: in reality, there probably isn't a pressurized reservoir, but some
-# compressor driven by some motor; I am not sure how adequate the "reservoir +
-# outlet pipe" modeling is for such a system.
-
-# Note: I have no idea what the correct value is for the given system, so I
-# picked some numbers...
-
+#%% model parameters
 L_upstream   = 10_000   # length of the upstream pipe section in [m]
 L_observed   =    500   # length of the observed pipe section in [m]
 L_downstream = 10_000   # length of the downstream pipe section in [m]
 
-# ...and the corresponding loss coefficients
+# ...and corresponding loss coefficients
 zeta_upstream = L_upstream / D * rohrreibungsbeiwert
 zeta_observed = L_observed / D * rohrreibungsbeiwert
 zeta_downstream = L_downstream / D * rohrreibungsbeiwert
 
 
-#%% real-world upstream reservoir parameters
+#%% system identification
 
-# pressure loss due to pipe friction
+# pressure loss along the upstream section due to pipe friction
 # (see https://de.wikipedia.org/wiki/Rohrreibungszahl)
-p_upstream    = p + zeta_upstream * density/2 * u**2
+p_loss_upstream = zeta_upstream * density/2 * u**2
 
 # upstream reservoir conditions including pressure loss (due to pipe friction,
 # pressure reduces along the way) and assuming adiabatic flow (no heat loss,
 # since the gas is roughly at ambient temperature)
-pt = p_upstream * (1 + (gamma-1)/2 * Ma**2)**(gamma/(gamma-1))
-Tt = T * (pt/p)**((gamma-1)/gamma)
-
-
-
-
-#%% real-world downstream exit conditions
+p_upstream  = p + p_loss_upstream
+pt_upstream = p_upstream * (1 + (gamma-1)/2 * Ma**2)**(gamma/(gamma-1))
+Tt_upstream = T * (pt_upstream/p_upstream)**((gamma-1)/gamma)
 
 # This is simply the upstream pressure minus all pressure losses along the way
 zeta_total = zeta_upstream + zeta_observed + zeta_downstream
 p_downstream = p_upstream - zeta_total * density/2 * u**2
+
 
 #%% NOMINALly operating system so far
 
