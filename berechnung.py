@@ -125,6 +125,11 @@ p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_t*gamma*Ma**2)
 # Mach number increase due to the pressure drop due to the pipe friction
 # along the flow path. This should be ok for the current analysis goal.
 
+# Better accuracy could be achieved by observing the massflow balance.
+# Given is the massflow from the upstream tank to the sensor:
+massflow_1s = compute_massflow(cross_section, pt1, Tt1, Ma, zeta_1s)
+# ...what we need is the p4 that achieves the same downstream massflow
+
 
 #%% Helper functions
 
@@ -203,7 +208,7 @@ density        = p / (R*T)             # density in [kg/m³]
 
 # pressure loss along the upstream section due to pipe friction
 # (see https://de.wikipedia.org/wiki/Rohrreibungszahl)
-p_loss_upstream = zeta_upstream * density/2 * u**2
+p_loss_upstream = zeta_1s * density/2 * u**2
 
 # upstream reservoir conditions including pressure loss (due to pipe friction,
 # pressure reduces along the way) and assuming adiabatic flow (no heat loss,
@@ -213,8 +218,7 @@ pt_upstream = p_upstream * (1 + (gamma-1)/2 * Ma**2)**(gamma/(gamma-1))
 Tt_upstream = T * (pt_upstream/p_upstream)**((gamma-1)/gamma)
 
 # This is simply the upstream pressure minus all pressure losses along the way
-zeta_total = zeta_upstream + zeta_observed + zeta_downstream
-p_downstream = p_upstream - zeta_total * density/2 * u**2
+p_downstream = p_upstream - zeta_t * density/2 * u**2
 
 
 #%% sanity check: compute real flow at sensor position, from upstream
@@ -226,7 +230,7 @@ def real_massflow_density(gamma, R, pt, Tt, zeta, Ma):
     assert c2 < c1  # otherwise, value of Ma is not possible
     return pt/sqrt(Tt) * sqrt(gamma/R) * Ma * (c1 - c2)
 
-real_massflow = cross_section * real_massflow_density(gamma, R, pt1, Tt1, zeta_upstream, Ma)
+real_massflow = cross_section * real_massflow_density(gamma, R, pt1, Tt1, zeta_1s, Ma)
 
 #%% LEAKAGE -- from undamaged to damaged system
 
