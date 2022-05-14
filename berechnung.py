@@ -105,20 +105,60 @@ p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_total*gamma*Ma**2)
 
 
 #%% Helper functions
-def compute_p2(Ma_2, L_leak):
+def compute_massflow(A, pt, Tt, Ma, zeta):
+    """Compute the massflow, with pressure losses due to friction being
+    subtracted from the total pressure upfront.
+
+    A    -- the cross section
+    pt   -- total pressure
+    Tt   -- total temperature
+    Ma   -- Mach number
+    zeta -- loss coefficient
+    """
+    M_ = M(Ma)
+    c_effectiv = M_**(0.5*(gamma+1)/(gamma-1))
+    c_lost    = zeta*gamma*Ma**2/sqrt(M_)
+    return A * pt/sqrt(Tt) * sqrt(gamma/R) * Ma / (c_effectiv + c_lost)
+
+def zeta_12(L_leak):
+    return zeta_upstream + zeta_observed / L_observed * L_leak
+
+def zeta_24(L_leak):
+    return zeta_observed / L_observed * (L_observed-L_leak) + zeta_downstream
+
+def compute_p2(Ma2, L_leak):
     """Compute the static pressure at the leak site for a given Mach number.
 
     Keyword arguments:
-    Ma_2   -- the Mach number just before the leak site
+    Ma2    -- the Mach number just before the leak site
     L_leak -- the position of the leak site, on the observed segment
     """
-    M_2 = M(Ma_2)
-    zeta = zeta_upstream + zeta_observed / L_observed * L_leak
-    return pt1 / (M_2**(gamma/(gamma-1)) + zeta*gamma*Ma_2**2)
+    M2 = M(Ma2)
+    return pt1 / (M2**(gamma/(gamma-1)) + zeta_12(L_leak)*gamma*Ma2**2)
 
+def compute_p4(pt2, Ma3, L_leak):
+    """Compute the static pressure at the leak site for a given Mach number.
+
+    Keyword arguments:
+    pt2    -- the total pressure available at the leak site
+    Ma3    -- the Mach number just after the leak site
+    L_leak -- the position of the leak site, on the observed segment
+    """
+    M3 = M(Ma3)
+    return pt2 / (M3**(gamma/(gamma-1)) + zeta_24(L_leak)*gamma*Ma3**2)
 
 def seek(f, x_guess, x_step, y_goal, y_accuracy, tries = 10):
-    """Implements the Newton method."""
+    """Implements the Newton method. Seeks an x for the given y_goal,
+    in the limit of the given y_accuracy and the given tries.
+
+    Keyword arguments:
+    f          -- some function that takes an x and computes a y
+    x_guess    -- the first x to try
+    x_step     -- the increment of x for successive tries
+    y_goal     -- the desired outcome
+    y_accuracy -- the maximum allowable delta for termination
+    tries      -- the maximum number of refinements before giving up
+    """
     if tries <= 0:
         raise RecursionError("did not converge")
     y1 = f(x_guess)
@@ -130,15 +170,21 @@ def seek(f, x_guess, x_step, y_goal, y_accuracy, tries = 10):
         return seek(f, x_next_guess, x_step, y_goal, y_accuracy, tries-1)
 
 
-#%% Solve for leakage of 10% of pipe diameter at 50% of observed segment
+#%% Solve for leakage of 0% of pipe diameter at 50% of observed segment
 
-A_leak = 0.1 * cross_section
+A_leak = 0.0 * cross_section
 L_leak = 0.5 * L_observed
 
-p_goal = p
+p2 = 6_000_000
 
-seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma: compute_p2(Ma, L_leak), Ma, 0.01*Ma, p2, 1)
+seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma2: compute_p2(Ma2, L_leak), Ma, 0.01*Ma, p2, 1.)
+Ma2 = seek_Ma2_for_p2(p2)
+pt2 = p2 * M(Ma2)**(gamma/(gamma-1))
+seek_Ma3_for_p4 = lambda p4: seek(lambda Ma3: compute_p4(pt2, Ma3, L_leak), Ma2, 0.01*Ma2, p4, 1.)
+Ma3 = seek_Ma3_for_p4(p4)
 
+m_in  = compute_massflow(cross_section, pt1, Tt1, Ma2, zeta_12(L_leak))
+m_out = compute_massflow(cross_section, pt2, Tt1, Ma3, zeta_24(L_leak))
 
 
 
