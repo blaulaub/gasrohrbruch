@@ -85,6 +85,23 @@ zeta_downstream = L_downstream / D * rohrreibungsbeiwert
 def M(Ma): return 1 + 0.5*(gamma-1) * Ma**2
 
 
+#%% Helper function: lossy massflow
+def compute_massflow(A, pt, Tt, Ma, zeta):
+    """Compute the massflow, with pressure losses due to friction being
+    subtracted from the total pressure upfront.
+
+    A    -- the cross section
+    pt   -- total pressure
+    Tt   -- total temperature
+    Ma   -- Mach number
+    zeta -- loss coefficient
+    """
+    M_ = M(Ma)
+    c_effectiv = M_**(0.5*(gamma+1)/(gamma-1))
+    c_lost    = zeta*gamma*Ma**2/sqrt(M_)
+    return A * pt/sqrt(Tt) * sqrt(gamma/R) * Ma / (c_effectiv + c_lost)
+
+
 #%% System Identification preliminaries: sensor site
 speed_of_sound = sqrt(gamma * R * T)   # local speed of sound in [m/s]
 Ma             = u / speed_of_sound    # local Mach number
@@ -105,20 +122,6 @@ p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_total*gamma*Ma**2)
 
 
 #%% Helper functions
-def compute_massflow(A, pt, Tt, Ma, zeta):
-    """Compute the massflow, with pressure losses due to friction being
-    subtracted from the total pressure upfront.
-
-    A    -- the cross section
-    pt   -- total pressure
-    Tt   -- total temperature
-    Ma   -- Mach number
-    zeta -- loss coefficient
-    """
-    M_ = M(Ma)
-    c_effectiv = M_**(0.5*(gamma+1)/(gamma-1))
-    c_lost    = zeta*gamma*Ma**2/sqrt(M_)
-    return A * pt/sqrt(Tt) * sqrt(gamma/R) * Ma / (c_effectiv + c_lost)
 
 def zeta_12(L_leak):
     return zeta_upstream + zeta_observed / L_observed * L_leak
