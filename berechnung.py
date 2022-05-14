@@ -99,6 +99,7 @@ def compute_massflow(A, pt, Tt, Ma, zeta):
 #%% Helper function: loss coefficients
 
 zeta_1s   = L_upstream / D * rohrreibungsbeiwert
+zeta_s4   = (L_observed + L_downstream) / D * rohrreibungsbeiwert
 zeta_t    = (L_upstream + L_observed + L_downstream) / D * rohrreibungsbeiwert
 
 def zeta_12(L_leak):
@@ -129,6 +130,13 @@ p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_t*gamma*Ma**2)
 # Given is the massflow from the upstream tank to the sensor:
 massflow_1s = compute_massflow(cross_section, pt1, Tt1, Ma, zeta_1s)
 # ...what we need is the p4 that achieves the same downstream massflow
+
+pts = p * M(Ma)**(gamma/(gamma-1))
+Tts = T * M(Ma)
+
+Ma_s4 = Ma  # this is just a guess
+massflow_s4 = compute_massflow(cross_section, pts, Tts, Ma_s4, zeta_s4)
+# NOTE massflow_1s /= massflow_s4, BUT IT SHOULD !!!
 
 
 #%% Helper functions
