@@ -39,18 +39,18 @@ from math import pi, sqrt
 # downstream tank an the end of the downstream segment.
 
 
-#%% methane gas properties
+#%% Given: gas properties of methane
 R     =  518.28     # Gas constant in [J/(kg·K)]
 gamma =    1.31     # specific heat ratio in [-]
 cp    = 2232        # specific heat in [J/(kg·K)]
 
 
-#%% pipe parameters
+#%% Given: pipe parameters
 D              = 0.3              # duct diameter in [m]
 cross_section  = pi/4 * D**2      # duct cross section
 
 
-#%% conditions at the upstream sensor
+#%% Given: nominal conditions at the upstream sensor
 T     =        10  + 273.15   # fluid temperature (~10 °C) in [K]
 p     = 6_000_000             # duct pressure in [Pa] (1 bar = 1e5 Pa)
 u     =        10             # flow velocity in [m/s]
