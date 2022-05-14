@@ -74,12 +74,6 @@ L_upstream   = 7_000   # length of the upstream pipe section in [m]
 L_downstream = 7_000   # length of the downstream pipe section in [m]
 
 
-#%% Dependent: loss coefficients
-zeta_upstream   = L_upstream   / D * rohrreibungsbeiwert
-zeta_observed   = L_observed   / D * rohrreibungsbeiwert
-zeta_downstream = L_downstream / D * rohrreibungsbeiwert
-
-
 #%% Helper function: ratio of total to static temperature
 # This is a frequently used function of Ma, hence I name it M.
 def M(Ma): return 1 + 0.5*(gamma-1) * Ma**2
@@ -102,19 +96,30 @@ def compute_massflow(A, pt, Tt, Ma, zeta):
     return A * pt/sqrt(Tt) * sqrt(gamma/R) * Ma / (c_effectiv + c_lost)
 
 
+#%% Helper function: loss coefficients
+
+zeta_1s   = L_upstream / D * rohrreibungsbeiwert
+zeta_t    = (L_upstream + L_observed + L_downstream) / D * rohrreibungsbeiwert
+
+def zeta_12(L_leak):
+    return (L_upstream + L_observed) / D * rohrreibungsbeiwert
+
+def zeta_24(L_leak):
+    return (L_observed-L_leak + L_downstream) / D * rohrreibungsbeiwert
+
+
 #%% System Identification preliminaries: sensor site
 speed_of_sound = sqrt(gamma * R * T)   # local speed of sound in [m/s]
 Ma             = u / speed_of_sound    # local Mach number
 
 
 #%% System Identification: upstream tank
-pt1 = p * (M(Ma)**(gamma/(gamma-1)) + zeta_upstream*gamma*Ma**2)
+pt1 = p * (M(Ma)**(gamma/(gamma-1)) + zeta_1s*gamma*Ma**2)
 Tt1 = T *  M(Ma)
 
 
 #%% System Identification: downstream tank
-zeta_total = zeta_upstream + zeta_observed + zeta_downstream
-p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_total*gamma*Ma**2)
+p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_t*gamma*Ma**2)
 # Note on accuracy: Here we used the Mach number computed for the nominal
 # conditions, in particular for the nominal pressure, and neglected the
 # Mach number increase due to the pressure drop due to the pipe friction
@@ -122,12 +127,6 @@ p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_total*gamma*Ma**2)
 
 
 #%% Helper functions
-
-def zeta_12(L_leak):
-    return zeta_upstream + zeta_observed / L_observed * L_leak
-
-def zeta_24(L_leak):
-    return zeta_observed / L_observed * (L_observed-L_leak) + zeta_downstream
 
 def compute_p2(Ma2, L_leak):
     """Compute the static pressure at the leak site for a given Mach number.
