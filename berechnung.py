@@ -35,8 +35,12 @@ from math import pi, sqrt
 # We use index 1 for the upstream tank and the beginning of the upstream
 # segment, index s for the sensor position, which coincides with the end of
 # the upstream segment and the beginning of the observed segment, index 2 for
-# the leakage position along the observed segment, and index 3 for the
+# the leakage position along the observed segment, and index 4 for the
 # downstream tank an the end of the downstream segment.
+#
+# We reserve but don't use index 3 for the connection from observed to
+# downstream; but presumably there will be the next sensor, so this could be
+# interesting, too.
 
 
 #%% Given: gas properties of methane
@@ -48,21 +52,16 @@ cp    = 2232        # specific heat in [J/(kg·K)]
 #%% Given: pipe parameters
 D              = 0.3              # duct diameter in [m]
 cross_section  = pi/4 * D**2      # duct cross section
+L_observed     =    700           # length of the observed pipe section in [m]
 
 
 #%% Given: nominal conditions at the upstream sensor
-T     =        10  + 273.15   # fluid temperature (~10 °C) in [K]
-p     = 6_000_000             # duct pressure in [Pa] (1 bar = 1e5 Pa)
-u     =        10             # flow velocity in [m/s]
+T =        10  + 273.15   # fluid temperature (~10 °C) in [K]
+p = 6_000_000             # duct pressure in [Pa] (1 bar = 1e5 Pa)
+u =        10             # flow velocity in [m/s]
 
 
-#%% other values at the upstream sensor position
-speed_of_sound = sqrt(gamma * R * T)   # local speed of sound in [m/s]
-Ma             = u / speed_of_sound    # local Mach number
-density        = p / (R*T)             # density in [kg/m³]
-
-
-#%% pipe friction parameter
+#%% Given: pipe friction parameter
 
 # Note: I have no idea what the correct value is for the given pipes, so I
 # picked some value from https://de.wikipedia.org/wiki/Moody-Diagramm
@@ -70,15 +69,47 @@ rohrreibungsbeiwert = 0.01       # a.k.a. "Rohrreibungszahl"
 # see https://de.wikipedia.org/wiki/Rohrreibungszahl for how to estimate
 
 
-#%% model parameters
-L_upstream   = 10_000   # length of the upstream pipe section in [m]
-L_observed   =    500   # length of the observed pipe section in [m]
-L_downstream = 10_000   # length of the downstream pipe section in [m]
+#%% Chosen: model parameters
+L_upstream   = 7_000   # length of the upstream pipe section in [m]
+L_downstream = 7_000   # length of the downstream pipe section in [m]
 
-# ...and corresponding loss coefficients
-zeta_upstream = L_upstream / D * rohrreibungsbeiwert
-zeta_observed = L_observed / D * rohrreibungsbeiwert
+
+#%% Dependent: loss coefficients
+zeta_upstream   = L_upstream   / D * rohrreibungsbeiwert
+zeta_observed   = L_observed   / D * rohrreibungsbeiwert
 zeta_downstream = L_downstream / D * rohrreibungsbeiwert
+
+
+#%% Helper function: ratio of total to static temperature
+# This is a frequently used function of Ma, hence I name it M.
+M = lambda Ma : 1 + 0.5*(gamma-1) * Ma**2
+
+
+#%% System Identification preliminaries: sensor site
+speed_of_sound = sqrt(gamma * R * T)   # local speed of sound in [m/s]
+Ma             = u / speed_of_sound    # local Mach number
+
+
+#%% System Identification: upstream tank
+pt1 = p * (M(Ma)**(gamma/(gamma-1)) + zeta_upstream*gamma*Ma**2)
+Tt1 = T *  M(Ma)
+
+
+#%% System Identification: downstream tank
+zeta_total = zeta_upstream + zeta_observed + zeta_downstream
+p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_total*gamma*Ma**2)
+# Note on accuracy: Here we used the Mach number computed for the nominal
+# conditions, in particular for the nominal pressure, and neglected the
+# Mach number increase due to the pressure drop due to the pipe friction
+# along the flow path. This should be ok for the current analysis goal.
+
+
+
+
+
+
+#%% other values at the upstream sensor position
+density        = p / (R*T)             # density in [kg/m³]
 
 
 #%% system identification
@@ -99,15 +130,6 @@ zeta_total = zeta_upstream + zeta_observed + zeta_downstream
 p_downstream = p_upstream - zeta_total * density/2 * u**2
 
 
-#%% NOMINALly operating system so far
-
-assert 'Tt' in vars()              # total temperature upstream
-assert 'pt' in vars()              # total pressure upstream
-assert 'zeta_upstream' in vars()   # friction losses while comming from upstream
-assert 'zeta_observed' in vars()   # friction losses while going through observed
-assert 'zeta_downstream' in vars() # friction losses while going downstream
-assert 'p_downstream' in vars()    # back pressure downstream
-
 #%% sanity check: compute real flow at sensor position, from upstream
 
 def real_massflow_density(gamma, R, pt, Tt, zeta, Ma):
@@ -117,7 +139,7 @@ def real_massflow_density(gamma, R, pt, Tt, zeta, Ma):
     assert c2 < c1  # otherwise, value of Ma is not possible
     return pt/sqrt(Tt) * sqrt(gamma/R) * Ma * (c1 - c2)
 
-real_massflow = cross_section * real_massflow_density(gamma, R, pt, Tt, zeta_upstream, Ma)
+real_massflow = cross_section * real_massflow_density(gamma, R, pt1, Tt1, zeta_upstream, Ma)
 
 #%% LEAKAGE -- from undamaged to damaged system
 
@@ -143,76 +165,3 @@ assert D_leakage > 0 and D_leakage <= D
 # The leakage opens to ambient, with ambient pressure
 # (with respect to a scale of 60 bar, this may be considered constant)
 p_amb  = 101_300              # nominal ambient pressure in [Pa]
-
-
-
-
-
-#%% remainder
-
-L     =     1_000             # nominal duct length in [m]
-
-# ambient conditions
-
-# derived values
-p              = P * p_amb                     # duct fluid pressure in [Pa]
-mass_flow      = density * cross_section * u   # mass flow in kg/s
-
-# SO FAR
-# - velocity is small compared to sound (may be neglected)
-# - sound takes ~2 seconds to travel 1 km
-# - mass flow is ~29 kilogram per second
-
-# QUESTIONS
-# - how to model the system ?
-# - how to model a damage event (sudden duct breakage) ?
-# - how to model the leakage ?
-# - what is the detectable wave (amplitude, dispersion) ?
-# - what are the detectable characteristics (e.g., permanent pressure drop) ?
-# - what is the impact of the leakage area (from 0 to 1 duct cross section) ?
-
-# KEYWORDS
-# - acoustic waves in a duct
-# - compression waves in a duct
-
-
-
-
-# UPFRONT: static analysis of pipe an leakage flow
-
-# SIMPLE ESTIMATE: Mach number for given duct-to-ambient pressure ratio
-# (maximum possible Mach number for discharge to ambient)
-max_discharge_Mach_number = sqrt(2/(gamma-1)*(P**((gamma-1)/gamma)-1))
-# - computes to Mach 3.2
-#   (a higher value means more energy potential in the fluid in the duct)
-#   (a Mach number >1 means that the duct conditions are not the limiting factor for leakage flow)
-
-# SIMPLE ESTIMATE: discharge mass flow for given duct conditions and
-# given a leakage cross section equal to the duct cross section, at Ma=1
-coeff1 = cross_section * P * p_amb/sqrt(T)
-coeff3 = 0.5 * (1+gamma)/(1-gamma)
-max_discharge_mass_flow = coeff1 * sqrt(gamma/R) * (1 + (gamma-1)/2)**coeff3
-# - computes to 750 kg/s for leakage = 100% duct cross section
-#   (under optimum conditions, e.g., breakage right after the pipe start)
-
-# SIMPLE ESTIMATE: fraction of leakage-to-duct cross section, where at Ma=1
-# the leakage mass flow is equal to the pipe mass flow
-f = mass_flow/cross_section / coeff1 * sqrt(R/gamma) * (1+(gamma-1)/2)**(-coeff3)
-# - computes to 0.55
-#   (means that given a hole of 55% of the duct cross section and sufficient
-#   downstream pipe resistance, all gas would leak)
-
-
-
-#%% methane hydraulic properties
-#   (required to compute friction effects)
-
-# Note: I did not find precises numbers for that on Google Search; there are
-# equations to approximate this based on temperature and pressure, but that
-# takes more time.
-
-# Here, I just use some approximate numbers
-# (from Google Search, but not for the correct pressure and/or temperature):
-dynamic_viscosity_cp = 0.01107                      # in Centipoises [cP]
-dynamic_viscosity    = dynamic_viscosity_cp * 0.001 # in Pascal seconds [P·s]
-
