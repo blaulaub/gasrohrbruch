@@ -82,7 +82,7 @@ zeta_downstream = L_downstream / D * rohrreibungsbeiwert
 
 #%% Helper function: ratio of total to static temperature
 # This is a frequently used function of Ma, hence I name it M.
-M = lambda Ma : 1 + 0.5*(gamma-1) * Ma**2
+def M(Ma): return 1 + 0.5*(gamma-1) * Ma**2
 
 
 #%% System Identification preliminaries: sensor site
@@ -103,6 +103,41 @@ p4 = pt1 / (M(Ma)**(gamma/(gamma-1)) + zeta_total*gamma*Ma**2)
 # Mach number increase due to the pressure drop due to the pipe friction
 # along the flow path. This should be ok for the current analysis goal.
 
+
+#%% Helper functions
+def compute_p2(Ma_2, L_leak):
+    """Compute the static pressure at the leak site for a given Mach number.
+
+    Keyword arguments:
+    Ma_2   -- the Mach number just before the leak site
+    L_leak -- the position of the leak site, on the observed segment
+    """
+    M_2 = M(Ma_2)
+    zeta = zeta_upstream + zeta_observed / L_observed * L_leak
+    return pt1 / (M_2**(gamma/(gamma-1)) + zeta*gamma*Ma_2**2)
+
+
+def seek(f, x_guess, x_step, y_goal, y_accuracy, tries = 10):
+    """Implements the Newton method."""
+    if tries <= 0:
+        raise RecursionError("did not converge")
+    y1 = f(x_guess)
+    if (abs(y1-y_goal) <= y_accuracy):
+        return x_guess
+    else:
+        y2 = f(x_guess + x_step)
+        x_next_guess = x_guess + x_step * (y1-y_goal)/(y1-y2)
+        return seek(f, x_next_guess, x_step, y_goal, y_accuracy, tries-1)
+
+
+#%% Solve for leakage of 10% of pipe diameter at 50% of observed segment
+
+A_leak = 0.1 * cross_section
+L_leak = 0.5 * L_observed
+
+p_goal = p
+
+seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma: compute_p2(Ma, L_leak), Ma, 0.01*Ma, p2, 1)
 
 
 
