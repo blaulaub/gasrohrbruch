@@ -175,18 +175,22 @@ def seek(f, x_guess, x_step, y_goal, y_accuracy, tries = 10):
 A_leak = 0.0 * cross_section
 L_leak = 0.5 * L_observed
 
-p2 = 6_000_000
+def massflow_error_for_p2(p2):
+    seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma2: compute_p2(Ma2, L_leak), Ma, 0.01*Ma, p2, 1.)
+    Ma2 = seek_Ma2_for_p2(p2)
+    pt2 = p2 * M(Ma2)**(gamma/(gamma-1))
+    seek_Ma3_for_p4 = lambda p4: seek(lambda Ma3: compute_p4(pt2, Ma3, L_leak), Ma2, 0.01*Ma2, p4, 1.)
+    Ma3 = seek_Ma3_for_p4(p4)
+    m_in  = compute_massflow(cross_section, pt1, Tt1, Ma2, zeta_12(L_leak))
+    m_out = compute_massflow(cross_section, pt2, Tt1, Ma3, zeta_24(L_leak))
+    return m_in - m_out
 
-seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma2: compute_p2(Ma2, L_leak), Ma, 0.01*Ma, p2, 1.)
-Ma2 = seek_Ma2_for_p2(p2)
-pt2 = p2 * M(Ma2)**(gamma/(gamma-1))
-seek_Ma3_for_p4 = lambda p4: seek(lambda Ma3: compute_p4(pt2, Ma3, L_leak), Ma2, 0.01*Ma2, p4, 1.)
-Ma3 = seek_Ma3_for_p4(p4)
+p2 = seek(massflow_error_for_p2, p, 100, 0, 0.1)
 
-m_in  = compute_massflow(cross_section, pt1, Tt1, Ma2, zeta_12(L_leak))
-m_out = compute_massflow(cross_section, pt2, Tt1, Ma3, zeta_24(L_leak))
-
-
+# Note: p2 is higher than p
+# this means, the errors of our system identification are already too high
+# ... do we need an integral, to allow for arbitrary L_leak,
+# or will it be sufficient to split the three segments?
 
 
 #%% other values at the upstream sensor position
