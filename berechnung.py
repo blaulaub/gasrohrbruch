@@ -109,6 +109,31 @@ def zeta_24(L_leak):
     return (L_observed-L_leak + L_downstream) / D * rohrreibungsbeiwert
 
 
+#%% Helper function: Newton method
+
+def seek(f, x_guess, x_step, y_goal, y_accuracy, tries = 10):
+    """Implements the Newton method. Seeks an x for the given y_goal,
+    in the limit of the given y_accuracy and the given tries.
+
+    Keyword arguments:
+    f          -- some function that takes an x and computes a y
+    x_guess    -- the first x to try
+    x_step     -- the increment of x for successive tries
+    y_goal     -- the desired outcome
+    y_accuracy -- the maximum allowable delta for termination
+    tries      -- the maximum number of refinements before giving up
+    """
+    if tries <= 0:
+        raise RecursionError("did not converge")
+    y1 = f(x_guess)
+    if (abs(y1-y_goal) <= y_accuracy):
+        return x_guess
+    else:
+        y2 = f(x_guess + x_step)
+        x_next_guess = x_guess + x_step * (y1-y_goal)/(y1-y2)
+        return seek(f, x_next_guess, x_step, y_goal, y_accuracy, tries-1)
+
+
 #%% System Identification preliminaries: sensor site
 speed_of_sound = sqrt(gamma * R * T)   # local speed of sound in [m/s]
 Ma             = u / speed_of_sound    # local Mach number
@@ -161,28 +186,6 @@ def compute_p4(pt2, Ma3, L_leak):
     """
     M3 = M(Ma3)
     return pt2 / (M3**(gamma/(gamma-1)) + zeta_24(L_leak)*gamma*Ma3**2)
-
-def seek(f, x_guess, x_step, y_goal, y_accuracy, tries = 10):
-    """Implements the Newton method. Seeks an x for the given y_goal,
-    in the limit of the given y_accuracy and the given tries.
-
-    Keyword arguments:
-    f          -- some function that takes an x and computes a y
-    x_guess    -- the first x to try
-    x_step     -- the increment of x for successive tries
-    y_goal     -- the desired outcome
-    y_accuracy -- the maximum allowable delta for termination
-    tries      -- the maximum number of refinements before giving up
-    """
-    if tries <= 0:
-        raise RecursionError("did not converge")
-    y1 = f(x_guess)
-    if (abs(y1-y_goal) <= y_accuracy):
-        return x_guess
-    else:
-        y2 = f(x_guess + x_step)
-        x_next_guess = x_guess + x_step * (y1-y_goal)/(y1-y2)
-        return seek(f, x_next_guess, x_step, y_goal, y_accuracy, tries-1)
 
 
 #%% Solve for leakage of 0% of pipe diameter at 50% of observed segment
