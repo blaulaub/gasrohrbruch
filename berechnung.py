@@ -159,9 +159,9 @@ massflow_1s = compute_massflow(cross_section, pt1, Tt1, Ma, zeta_1s)
 pts = p * M(Ma)**(gamma/(gamma-1))
 Tts = T * M(Ma)
 
-Ma_s4 = Ma  # this is just a guess
+Ma_s4 = seek(lambda Ma_s4 : compute_massflow(cross_section, pts, Tts, Ma_s4, zeta_s4), Ma, Ma*0.01, massflow_1s, 0.001)
 massflow_s4 = compute_massflow(cross_section, pts, Tts, Ma_s4, zeta_s4)
-# NOTE massflow_1s /= massflow_s4, BUT IT SHOULD !!!
+p4 = pts / (M(Ma_s4)**(gamma/(gamma-1)) + zeta_s4*gamma*Ma_s4**2)
 
 
 #%% Helper functions
