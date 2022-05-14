@@ -2,6 +2,42 @@
 
 from math import pi, sqrt
 
+#%% Problem Description
+#
+# We look at a section of a gas pipeline where we want to detect damages
+# to the pipe that lead to gas leakages, by means of a sensor that measures
+# pressure.
+
+
+#%% Model Description
+#
+# For this analysis, there is one "sensor position" where nonimal conditions
+# (temperature, pressure, velocity) are defined, and where pressure is
+# measured.
+#
+# We considere three consecutive pipe segments. The first pipe segment is
+# the observed segment, the leakage can occur anywhere within this segment.
+# The sensor position is at the start of the observed segment.
+#
+# To approximate a realistic system, we assume there are two gas tanks
+# upstream and downstream of the observed segment. Both are assumed to be of
+# infinite volume, in order to provide stationary boundary conditions for the
+# analysis. The tanks are assumed to be connected to the observed segments by
+# an upstream and a downstream pipe segment, respectively.
+#
+# The combination of tank and pipe segments on both sides, upstream and
+# downstream, acts as a model for a real gas source or sink, respectively;
+# that should be a sufficient approximation for moderate system variations,
+# but might be incorrect for extreme conditions (e.g., when the mass flow
+# deviates significantly from the nominal mass flow, or when the pipe segments
+# are not significantly longer than the observed pipe segment).
+#
+# We use index 1 for the upstream tank and the beginning of the upstream
+# segment, index s for the sensor position, which coincides with the end of
+# the upstream segment and the beginning of the observed segment, index 2 for
+# the leakage position along the observed segment, and index 3 for the
+# downstream tank an the end of the downstream segment.
+
 
 #%% methane gas properties
 R     =  518.28     # Gas constant in [J/(kg·K)]
