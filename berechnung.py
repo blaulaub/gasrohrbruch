@@ -210,18 +210,17 @@ p2 = seek(massflow_error_for_p2, p, 100, 0, 0.1)
 
 #%% Solve for leakage of 1% of pipe diameter at 50% of observed segment
 
-
 def solve(L_leak, A_leak, Ma2_guess, Ma3_guess):
 
     def compute_before_2(p2, Ma2_guess):
-        seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma2: compute_p2(Ma2, L_leak), Ma2_guess, 0.01*Ma2_guess, p2, 1.)
+        seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma2: compute_p2(Ma2, L_leak), Ma2_guess, 0.01*Ma2_guess, p2, 1)
         Ma2 = seek_Ma2_for_p2(p2)
         pt2 = p2 * M(Ma2)**(gamma/(gamma-1))
         m_in  = compute_massflow(cross_section, pt1, Tt1, Ma2, zeta_12(L_leak))
         return (Ma2, pt2, m_in)
 
     def compute_after_2(pt2, Ma3_guess):
-        seek_Ma3_for_p4 = lambda p4: seek(lambda Ma3: compute_p4(pt2, Ma3, L_leak), Ma3_guess, 0.01*Ma3_guess, p4, 1.)
+        seek_Ma3_for_p4 = lambda p4: seek(lambda Ma3: compute_p4(pt2, Ma3, L_leak), Ma3_guess, 0.01*Ma3_guess, p4, 1)
         Ma3 = seek_Ma3_for_p4(p4)
         m_out = compute_massflow(cross_section, pt2, Tt1, Ma3, zeta_24(L_leak))
         return (Ma3, m_out)
@@ -237,7 +236,7 @@ def solve(L_leak, A_leak, Ma2_guess, Ma3_guess):
         m_leak           = compute_leakage(pt2)
         return m_in - m_out - m_leak
 
-    p2 = seek(massflow_error_for_p2, p, 100, 0, 0.1)
+    p2 = seek(massflow_error_for_p2, p, 100, 0, 0.01)
     (Ma2, pt2, m_in) = compute_before_2(p2, Ma2_guess)
     (Ma3, m_out)     = compute_after_2(pt2, Ma3_guess)
     m_leak           = compute_leakage(pt2)
@@ -248,3 +247,30 @@ A_leak = 0.01 * cross_section
 L_leak = 0.5 * L_observed
 
 (p2, Ma2, pt2, m_in, Ma3, m_out, m_leak) = solve(L_leak, A_leak, Ma2_guess=Ma, Ma3_guess=Ma)
+
+#%% Solve for range of leakages at 50% of observed segment
+
+def solve_all(L_leak, A_leaks, Ma_guess):
+    def s(L_leak, A_leaks, Ma2_guess, Ma3_guess, result):
+        if not A_leaks: return result
+        A_leak = A_leaks.pop(0)
+        (p2, Ma2, pt2, m_in, Ma3, m_out, m_leak) = solve(L_leak, A_leak, Ma2_guess=Ma, Ma3_guess=Ma)
+        result.append((
+            A_leak/cross_section,    # leakage area fraction
+            p2,                      # gas pressure at leakage site
+            p2/p,                    # fraction of pressure relative to sensor
+            m_in,                    # massflow from upstream
+            m_out,                   # massflow going downstream
+            m_leak                   # massflow lost to environment
+        ))
+        s(L_leak, A_leaks, Ma2, Ma3, result)
+        return s(L_leak, A_leaks, Ma2, Ma3, result)
+    return s(L_leak, A_leaks, Ma_guess, Ma_guess, [])
+
+#A_leaks = [0., 0.01*cross_section]
+A_leaks = [ cross_section * i/100. for i in range(6) ]
+result = solve_all(L_leak, A_leaks, Ma)
+
+# Note: for the given model (where rohrreibungsbeiwert, L_upstream and
+# L_downstream are just guesses), at 6% leakage cross section, the pressure
+# already drops so low that fluid comes back from downstream.
