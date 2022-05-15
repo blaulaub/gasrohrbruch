@@ -205,11 +205,6 @@ def massflow_error_for_p2(p2):
 
 p2 = seek(massflow_error_for_p2, p, 100, 0, 0.1)
 
-# Note: p2 is higher than p
-# this means, the errors of our system identification are already too high
-# ... do we need an integral, to allow for arbitrary L_leak,
-# or will it be sufficient to split the three segments?
-
 
 #%% other values at the upstream sensor position
 density        = p / (R*T)             # density in [kg/m³]
