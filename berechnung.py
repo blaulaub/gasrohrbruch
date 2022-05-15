@@ -55,10 +55,12 @@ cross_section  = pi/4 * D**2      # duct cross section
 L_observed     =    700           # length of the observed pipe section in [m]
 
 
-#%% Given: nominal conditions at the upstream sensor
-T =        10  + 273.15   # fluid temperature (~10 °C) in [K]
-p = 6_000_000             # duct pressure in [Pa] (1 bar = 1e5 Pa)
-u =        10             # flow velocity in [m/s]
+#%% Given: nominal conditions at the upstream sensor and at ambient
+T     =        10  + 273.15   # fluid temperature (~10 °C) in [K]
+p     = 6_000_000             # duct pressure in [Pa] (1 bar = 1e5 Pa)
+u     =        10             # flow velocity in [m/s]
+
+p_amb = 101_300               # ambient pressure in [Pa]
 
 
 #%% Given: pipe friction parameter
@@ -80,7 +82,7 @@ def M(Ma): return 1 + 0.5*(gamma-1) * Ma**2
 
 
 #%% Helper function: lossy massflow
-def compute_massflow(A, pt, Tt, Ma, zeta):
+def compute_massflow(A, pt, Tt, Ma, zeta = 0):
     """Compute the massflow, with pressure losses due to friction being
     subtracted from the total pressure upfront.
 
@@ -92,7 +94,7 @@ def compute_massflow(A, pt, Tt, Ma, zeta):
     """
     M_ = M(Ma)
     c_effectiv = M_**(0.5*(gamma+1)/(gamma-1))
-    c_lost    = zeta*gamma*Ma**2/sqrt(M_)
+    c_lost    = 0 if zeta == 0 else zeta*gamma*Ma**2/sqrt(M_)
     return A * pt/sqrt(Tt) * sqrt(gamma/R) * Ma / (c_effectiv + c_lost)
 
 
@@ -206,59 +208,26 @@ def massflow_error_for_p2(p2):
 p2 = seek(massflow_error_for_p2, p, 100, 0, 0.1)
 
 
-#%% other values at the upstream sensor position
-density        = p / (R*T)             # density in [kg/m³]
+#%% Solve for leakage of 1% of pipe diameter at 50% of observed segment
 
+A_leak = 0.01 * cross_section
+L_leak = 0.5 * L_observed
 
-#%% system identification
+def massflow_error_for_p2(p2):
 
-# pressure loss along the upstream section due to pipe friction
-# (see https://de.wikipedia.org/wiki/Rohrreibungszahl)
-p_loss_upstream = zeta_1s * density/2 * u**2
+    seek_Ma2_for_p2 = lambda p2 : seek(lambda Ma2: compute_p2(Ma2, L_leak), Ma, 0.01*Ma, p2, 1.)
+    Ma2 = seek_Ma2_for_p2(p2)
+    pt2 = p2 * M(Ma2)**(gamma/(gamma-1))
+    seek_Ma3_for_p4 = lambda p4: seek(lambda Ma3: compute_p4(pt2, Ma3, L_leak), Ma2, 0.01*Ma2, p4, 1.)
+    m_in  = compute_massflow(cross_section, pt1, Tt1, Ma2, zeta_12(L_leak))
 
-# upstream reservoir conditions including pressure loss (due to pipe friction,
-# pressure reduces along the way) and assuming adiabatic flow (no heat loss,
-# since the gas is roughly at ambient temperature)
-p_upstream  = p + p_loss_upstream
-pt_upstream = p_upstream * (1 + (gamma-1)/2 * Ma**2)**(gamma/(gamma-1))
-Tt_upstream = T * (pt_upstream/p_upstream)**((gamma-1)/gamma)
+    Ma3 = seek_Ma3_for_p4(p4)
+    m_out = compute_massflow(cross_section, pt2, Tt1, Ma3, zeta_24(L_leak))
 
-# This is simply the upstream pressure minus all pressure losses along the way
-p_downstream = p_upstream - zeta_t * density/2 * u**2
+    Ma_leak = min(1., sqrt(((pt2/p_amb)**((gamma-1)/gamma)-1)*2/(gamma-1)))
+    m_leak = compute_massflow(A_leak, pt2, Tt1, Ma_leak)
 
+    return m_in - m_out - m_leak
 
-#%% sanity check: compute real flow at sensor position, from upstream
+p2 = seek(massflow_error_for_p2, p, 100, 0, 0.1)
 
-def real_massflow_density(gamma, R, pt, Tt, zeta, Ma):
-    M = 1 + 0.5*(gamma-1) * Ma**2
-    c1 = M**(0.5*(1+gamma)/(1-gamma))
-    c2 = zeta * 0.5*Ma**2 * M**(0.5*(3*gamma-1)/(gamma-1))
-    assert c2 < c1  # otherwise, value of Ma is not possible
-    return pt/sqrt(Tt) * sqrt(gamma/R) * Ma * (c1 - c2)
-
-real_massflow = cross_section * real_massflow_density(gamma, R, pt1, Tt1, zeta_1s, Ma)
-
-#%% LEAKAGE -- from undamaged to damaged system
-
-# So far we had an upstream reservoir, three pipe sections (upstream, observed,
-# downstream), and a downstream reservoir.
-
-# When a leakage occurs in the observed pipe section, a third reservoir
-# (ambient) is connected. Because the pressure ratio from pipe to ambient is
-# so high (60 bar duct pressure to 1 bar ambient pressure), this results in
-# high-Mach-number flow (instead of 10 meter per second along the pipe, we get
-# velocities in the order of to the speed of sound).
-
-# The leakage occurs within the observed section
-# (the observed section starts with the pressure sensor)
-L_leakage = 300        # distance downstream from pressure sensor
-assert L_leakage > 0 and L_leakage <= L_observed
-
-# The leakage is assumed to have a circular cross section/diameter
-# (the maximum value possible is the pipe diameter)
-D_leakage = 0.1 * D    # leakage hole diameter in [m]
-assert D_leakage > 0 and D_leakage <= D
-
-# The leakage opens to ambient, with ambient pressure
-# (with respect to a scale of 60 bar, this may be considered constant)
-p_amb  = 101_300              # nominal ambient pressure in [Pa]
