@@ -6,11 +6,15 @@
 
 \usepackage[ngerman]{babel}
 
+\usepackage{hyperref}
+
 \usepackage{amsmath}
 \usepackage{xcolor}
 
 \usepackage{epsfig}
 \usepackage{epstopdf}
+
+\usepackage{gensymb}
 
 \title{Simulation Rohrbruch Gasverteilnetz}
 \author{}
@@ -20,17 +24,64 @@
 
 \maketitle
 
-\section{Problem-Domäne}
+\section{Modellierung}
+
+\subsection{Rohrsegment mit Bruch}
+
+Diese Betrachtung bezieht sich auf ein Rohrsegment mit Bruchstelle, siehe Abb.~\ref{fig:bruch}.
+
+\begin{figure}[hbp]
+\centering
+\includegraphics[width=0.9\hsize]{bruch.eps}
+\caption{Rohrsegment mit Leckage- oder Bruchstelle}
+\label{fig:bruch}
+\end{figure}
+
+Es handelt sich um einen Rohrabschnitt mit konstanter Querschnittsfläche $A$, durch welchen einem Gas mit nominaler Geschwindigkeit $c$ strömt. Betrachtet wird ein Abschnitt der Länge $L_\mathit{observed}$, bei Lauflänge $L_\mathit{leak}$ ist ein Leck mit einer Querschnittsfläche $A_\mathit{leak}$.
+
+Am Anfang des Segments befindet sich ein Sensor, welcher Eigenschaften der Rohrströmung misst, in diesem Fall den statischen Druck $p_\textit{sensor}$.
+
+\subsection{Problem-Parameter}
+
+Das Strömungsmedium ist Methan. Die Fliessgeschwindigkeit ist $\approx 10\,\mathrm{m/s}$. Der Rohrinnendruck ist $\approx 60\pm 10\,\mathrm{bar}$. Die Rohrinnentemperatur ist $\approx 10\,\mathrm{\degree C}$. Die Länge $L_\mathit{observed}$ ist $\approx 500 \ldots 1000 \,\mathrm{m}$.
+
+\subsection{Problem-Frage}
+
+Wie ändert sich die Messung an der Sensor-Stelle, wenn eine Leckage plötzlich auftritt? Lassen sich z.B. durch Bauarbeiten verursachte Schäden detektieren durch solche Sensoren detektieren, und wie?
+
+
+
+\appendix
+
+\section{Rohrströmung}
+
+\subsection{Rohrsegmente}
+
+Rohrsegmente sind charakterisiert durch Durchmesser $D$ (oder Kreisquerschnitt $A$) und Länge $L$, siehe Abb.~\ref{fig:leitungssegment}.
+
+Die Wandrauhigkeit wird durch die Rohrreibungszahl $\lambda$ ausgedrückt.
+
+Die Rohrströmung wird durch die Geschwindigkeit $c$ (in $\mathrm{[m/s]}$) bzw. den Massenstrom $\dot m$ (in $\mathrm{[kg/s]}$) beschrieben, in Pfeilrichtung positiv.
 
 \begin{figure}[hbp]
 \centering
 \includegraphics[width=0.9\hsize]{problem.eps}
 \caption{Leitungssegment}
+\label{fig:leitungssegment}
 \end{figure}
 
-\section{Modellierung}
+\subsection{Randbedingungen}
 
-\appendix
+Für Berechnungen über Rohrsegmente werden in der Strömungsmechanik übliche Grössen für die Randbedingungen verwendet:
+
+Als Randbedingung am Austritt (in Abb.~\ref{fig:leitungssegment} rechts) wird der statische Druck $p$ verwendet, gelegentlich auch als Gegendruck bezeichnet, aber nicht zu verwechseln mit dem Staudruck.
+
+Als Randbedingung am Eintritt (in Abb.~\ref{fig:leitungssegment} links) werden der Totaldruck $p_t$ und die Totaltemperatur $T_t$ verwendet, das entspricht den Zustandsgrössen des Mediums in Ruhe, bei Geschwindigkeit Null.
+
+\subsection{Vernachlässigte Randbedingungen}
+
+Es wird davon ausgegangen, dass die Temperatur von Medium und Umgebung ungefähr gleich ist und deshalb kein signifikanter Wärmeaustausch stattfindet.
+
 
 \section{Grundgleichungen}
 
